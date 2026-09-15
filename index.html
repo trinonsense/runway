@@ -1,0 +1,1205 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Runway &mdash; airport countdown planner</title>
+<style>
+  :root {
+    --bg: #F3F2FA;
+    --surface: #FFFFFF;
+    --surface-2: #F5F4FC;
+    --border: #E1DEF2;
+    --text: #171338;
+    --text-muted: #5F5982;
+    --accent: #5B4BE1;
+    --accent-strong: #4534C6;
+    --accent-soft: rgba(91,75,225,0.10);
+    --accent-ring: rgba(91,75,225,0.22);
+    --good: #067A56;
+    --good-soft: rgba(6,122,86,0.12);
+    --warn: #8F5400;
+    --warn-soft: rgba(143,84,0,0.13);
+    --bad: #C01E48;
+    --bad-soft: rgba(192,30,72,0.12);
+    --shadow-sm: 0 1px 2px rgba(23,19,56,0.06);
+    --shadow: 0 1px 2px rgba(23,19,56,0.05), 0 10px 30px rgba(23,19,56,0.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #100D26;
+      --surface: #1A1640;
+      --surface-2: #221D4E;
+      --border: #352E6E;
+      --text: #F1EEFF;
+      --text-muted: #A49DD4;
+      --accent: #A08FFF;
+      --accent-strong: #C4B8FF;
+      --accent-soft: rgba(160,143,255,0.16);
+      --accent-ring: rgba(160,143,255,0.30);
+      --good: #3FD69B;
+      --good-soft: rgba(63,214,155,0.15);
+      --warn: #F5A63F;
+      --warn-soft: rgba(245,166,63,0.16);
+      --bad: #FF6E8E;
+      --bad-soft: rgba(255,110,142,0.16);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 14px 36px rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #100D26;
+    --surface: #1A1640;
+    --surface-2: #221D4E;
+    --border: #352E6E;
+    --text: #F1EEFF;
+    --text-muted: #A49DD4;
+    --accent: #A08FFF;
+    --accent-strong: #C4B8FF;
+    --accent-soft: rgba(160,143,255,0.16);
+    --accent-ring: rgba(160,143,255,0.30);
+    --good: #3FD69B;
+    --good-soft: rgba(63,214,155,0.15);
+    --warn: #F5A63F;
+    --warn-soft: rgba(245,166,63,0.16);
+    --bad: #FF6E8E;
+    --bad-soft: rgba(255,110,142,0.16);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 14px 36px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; }
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  }
+
+  .page { max-width: 660px; margin: 0 auto; padding: 28px 16px 72px; }
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  /* type scale: 11 / 12 / 14 / 16 / 20 / 28 / 40 */
+  .eyebrow {
+    font: 700 11px/1 -apple-system, sans-serif;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted);
+  }
+
+  .board {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+    padding: 24px; box-shadow: var(--shadow);
+  }
+  .brand { font: 800 12px/1 -apple-system, sans-serif; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); }
+  .headline {
+    font: 800 28px/1.08 "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: -0.022em; margin: 8px 0 0; text-wrap: balance;
+  }
+  .subhead { margin: 8px 0 0; font: 500 14px/1.5 -apple-system, sans-serif; color: var(--text-muted); max-width: 42ch; text-wrap: pretty; }
+
+  .section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+  .section-label { display: block; margin: 0 0 16px; }
+
+  /* ---------- controls ---------- */
+  .control-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
+  .control-icon {
+    flex: none; width: 36px; height: 36px; border-radius: 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; color: var(--text-muted);
+  }
+  .control-icon svg { width: 18px; height: 18px; }
+  .control-text { flex: 1; min-width: 0; }
+  .control-label { font: 700 14px/1.3 -apple-system, sans-serif; display: block; cursor: pointer; }
+  .control-sub { display: block; font: 500 12px/1.4 -apple-system, sans-serif; color: var(--text-muted); margin-top: 3px; }
+
+  .flight-time {
+    font: 800 28px/1 ui-monospace, "SF Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+    background: transparent; border: none; color: var(--text);
+    text-align: right; padding: 2px 0; flex: none;
+  }
+  .flight-time:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 5px; }
+
+  .mode-block { padding: 6px 0 2px; }
+  .mode-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .segmented {
+    display: flex; gap: 4px; padding: 4px; border-radius: 14px;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .seg {
+    flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px;
+    padding: 9px 4px; border: none; border-radius: 10px; background: transparent; cursor: pointer;
+    color: var(--text-muted); font: 700 11px/1.1 -apple-system, sans-serif;
+    transition: background 140ms ease, color 140ms ease;
+  }
+  .seg svg { width: 18px; height: 18px; }
+  .seg:hover { color: var(--text); }
+  .seg[aria-checked="true"] { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-sm); }
+  .seg:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .maps-link {
+    display: inline-flex; align-items: center; gap: 6px; margin: 2px 0 18px 48px; padding: 2px 0;
+    font: 600 12px/1 -apple-system, sans-serif; color: var(--accent); text-decoration: none;
+  }
+  .maps-link:hover { color: var(--accent-strong); text-decoration: underline; }
+  .maps-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+  /* ---------- the answer ---------- */
+  .answer { margin-bottom: 16px; }
+  .answer-time {
+    font: 800 40px/1 ui-monospace, "SF Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.035em; margin-top: 6px;
+  }
+
+  .stops { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+  .stop {
+    padding: 10px 11px; border-radius: 12px; text-align: left; cursor: pointer;
+    background: var(--surface-2); border: 1px solid var(--border); color: inherit; font: inherit;
+    transition: border-color 140ms ease, background 140ms ease;
+  }
+  .stop:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .stop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .stop b {
+    display: block; font: 800 16px/1.1 ui-monospace, "SF Mono", Menlo, monospace;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.025em; white-space: nowrap;
+  }
+  .stop span {
+    display: block; margin-top: 4px; font: 700 11px/1.2 -apple-system, sans-serif;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted);
+  }
+  .stop em { font-style: normal; text-transform: none; letter-spacing: 0; }
+  .stop.is-final { background: var(--accent-soft); border-color: var(--accent-ring); }
+  .stop.is-final b, .stop.is-final span { color: var(--accent); }
+
+  .stats { display: flex; gap: 12px; margin-top: 14px; }
+  .stat { flex: 1; }
+  .stat b { display: block; font: 800 20px/1.1 ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.025em; }
+  .stat span { display: block; margin-top: 3px; font: 600 11px/1.3 -apple-system, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+  .stat.right { text-align: right; }
+
+  .status-banner {
+    display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 12px 14px;
+    border-radius: 12px; font: 700 12px/1.4 -apple-system, sans-serif;
+  }
+  .status-banner .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+  .status-banner.good { color: var(--good); background: var(--good-soft); }
+  .status-banner.good .dot { background: var(--good); }
+  .status-banner.warn { color: var(--warn); background: var(--warn-soft); }
+  .status-banner.warn .dot { background: var(--warn); }
+  .status-banner.bad { color: var(--bad); background: var(--bad-soft); }
+  .status-banner.bad .dot { background: var(--bad); }
+
+  /* ---------- timeline ---------- */
+  .plan-head-row {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: 10px 14px; margin: 32px 4px 20px;
+  }
+  .plan-head-title { display: flex; align-items: center; gap: 7px; }
+  .plan-head { margin: 0; }
+
+  .plan-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .action-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted);
+    font: 700 11.5px/1 -apple-system, sans-serif; cursor: pointer;
+    transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+  }
+  .action-btn svg { width: 13px; height: 13px; flex: none; }
+  .action-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .action-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .action-btn.is-done { color: var(--good); border-color: var(--good); background: var(--good-soft); }
+
+  .help-tip { position: relative; display: inline-flex; }
+  .help-btn {
+    flex: none; width: 22px; height: 22px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center; cursor: help; padding: 0;
+  }
+  .help-btn svg { width: 12px; height: 12px; }
+  .help-btn:hover, .help-btn:focus-visible { color: var(--accent); border-color: var(--accent); }
+  .help-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .help-bubble {
+    position: absolute; left: 0; top: calc(100% + 9px); z-index: 5; width: 260px;
+    background: var(--text); color: var(--bg); padding: 10px 13px; border-radius: 10px;
+    font: 500 12px/1.5 -apple-system, sans-serif; letter-spacing: normal; text-transform: none;
+    box-shadow: var(--shadow); pointer-events: none;
+    opacity: 0; transform: translateY(-4px); transition: opacity 140ms ease, transform 140ms ease;
+  }
+  .help-bubble::before {
+    content: ""; position: absolute; bottom: 100%; left: 9px; border: 6px solid transparent;
+    border-bottom-color: var(--text);
+  }
+  .help-tip:hover .help-bubble, .help-btn:focus-visible ~ .help-bubble {
+    opacity: 1; transform: translateY(0);
+  }
+  @media (max-width: 460px) { .help-bubble { left: -8px; width: 230px; } }
+
+  .edit-note {
+    margin: 0 4px 16px; padding: 10px 13px; border-radius: 10px;
+    background: var(--warn-soft); color: var(--warn);
+    font: 700 12px/1.4 -apple-system, sans-serif;
+  }
+  .edit-note[hidden] { display: none; }
+
+  .timeline { position: relative; padding-left: 46px; padding-right: 24px; }
+  .timeline::before {
+    content: ""; position: absolute; left: 20px; top: 10px; bottom: 10px; width: 2px; background: var(--border);
+  }
+
+  .leg { position: relative; padding: 9px 0; }
+  .leg-marker {
+    position: absolute; left: -46px; top: 9px; width: 42px; height: 42px; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; color: var(--text-muted);
+  }
+  .leg-marker svg { width: 18px; height: 18px; }
+  .leg.is-anchor .leg-marker { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 4px var(--accent-ring); }
+  .leg.is-disabled .leg-marker { opacity: 0.4; }
+  /* Gap markers mask the rail so it never strikes through the icon. */
+  .leg--gap .leg-marker {
+    background: var(--bg); border-color: transparent;
+    width: 28px; height: 28px; left: -39px; top: 16px;
+  }
+  .leg--gap .leg-marker svg { width: 15px; height: 15px; }
+
+  .leg-row { display: flex; align-items: center; gap: 10px; min-height: 42px; }
+  .leg-main { flex: 1; min-width: 0; display: flex; align-items: center; }
+  .leg-label-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; row-gap: 6px; min-width: 0; }
+  .leg-label { font: 700 14px/1.3 -apple-system, sans-serif; cursor: default; }
+  .leg--gap .leg-label { font: 600 12px/1.3 -apple-system, sans-serif; color: var(--text-muted); }
+  .leg.is-disabled .leg-label { opacity: 0.55; }
+  .day-tag {
+    font: 700 11px/1 -apple-system, sans-serif; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border);
+    padding: 4px 6px; border-radius: 6px;
+  }
+
+  .leg-note {
+    display: inline-flex; align-items: center; gap: 7px; margin-top: 8px; padding: 7px 11px;
+    border-radius: 9px; font: 700 12px/1.3 -apple-system, sans-serif;
+  }
+  .leg-note .dot { flex: none; width: 6px; height: 6px; border-radius: 50%; }
+  .leg-note.good { color: var(--good); background: var(--good-soft); }
+  .leg-note.good .dot { background: var(--good); }
+  .leg-note.warn { color: var(--warn); background: var(--warn-soft); }
+  .leg-note.warn .dot { background: var(--warn); }
+  .leg-note.bad { color: var(--bad); background: var(--bad-soft); }
+  .leg-note.bad .dot { background: var(--bad); }
+
+  .leg-end { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 128px; flex: none; }
+  .time-chip {
+    font: 700 15px/1 ui-monospace, "SF Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px;
+    padding: 9px 10px; color: var(--text); min-width: 118px; flex: none;
+  }
+  .time-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .time-chip:disabled { cursor: not-allowed; opacity: 0.45; }
+
+  .pin-btn {
+    position: relative;
+    flex: none; height: 28px; min-width: 28px; padding: 0 6px; border-radius: 8px;
+    border: 1px solid transparent; background: transparent; color: var(--text-muted);
+    display: flex; align-items: center; gap: 5px; cursor: pointer;
+  }
+  .pin-btn::after { content: ""; position: absolute; inset: -8px -4px; }
+  .pin-btn svg { width: 16px; height: 16px; flex: none; }
+  .pin-btn .pin-label {
+    font: 700 11px/1 -apple-system, sans-serif; letter-spacing: 0.05em; text-transform: uppercase;
+    white-space: nowrap; max-width: 0; overflow: hidden; opacity: 0;
+    transition: max-width 160ms ease, opacity 160ms ease;
+  }
+  .pin-btn:hover { color: var(--accent); border-color: var(--border); background: var(--surface-2); }
+  .pin-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pin-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .pin-btn:disabled:hover { color: var(--text-muted); border-color: transparent; background: transparent; }
+  .leg.is-anchor .pin-btn { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); padding: 0 10px; }
+  .leg.is-anchor .pin-btn .pin-label { max-width: 90px; opacity: 1; }
+
+  .switch { position: relative; flex: none; width: 32px; height: 20px; }
+  .switch input { position: absolute; inset: -11px -5px; width: auto; height: auto; opacity: 0; margin: 0; cursor: pointer; }
+  .switch-track { position: absolute; inset: 0; background: var(--border); border-radius: 999px; transition: background 160ms ease; }
+  .switch-track::before {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,0.25); transition: transform 160ms ease;
+  }
+  .switch input:checked + .switch-track { background: var(--accent); }
+  .switch input:checked + .switch-track::before { transform: translateX(12px); }
+  .switch input:focus-visible + .switch-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .stepper { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex: none; min-width: 128px; }
+  .stepper button {
+    position: relative;
+    width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); font: 700 15px/1 -apple-system, sans-serif; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stepper button::after { content: ""; position: absolute; inset: -8px 0; }
+  .stepper button:hover { border-color: var(--accent); color: var(--accent); }
+  .stepper button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .stepper input {
+    width: 34px; flex: none; text-align: center; background: transparent; border: none; color: var(--text);
+    font: 700 14px/1 ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield; padding: 0;
+  }
+  .stepper input::-webkit-outer-spin-button,
+  .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .stepper input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  .stepper .unit { font: 600 11px/1 -apple-system, sans-serif; color: var(--text-muted); }
+  .leg.is-disabled .stepper { opacity: 0.5; }
+
+  @media (max-width: 460px) {
+    .board { padding: 20px 16px; }
+    .timeline { padding-left: 34px; padding-right: 0; }
+    .timeline::before { left: 15px; }
+    .leg-marker { left: -34px; width: 32px; height: 32px; top: 13px; }
+    .leg-marker svg { width: 16px; height: 16px; }
+    .leg--gap .leg-marker { left: -28px; width: 24px; height: 24px; top: 17px; }
+    .leg--gap .leg-marker svg { width: 14px; height: 14px; }
+    .leg-end, .stepper { min-width: 0; }
+    .time-chip { min-width: 106px; font-size: 14px; padding: 9px 8px; }
+    .maps-link { margin-left: 0; }
+    /* The big time would collide with its label, so give it its own line. */
+    .control-row { flex-wrap: wrap; row-gap: 8px; }
+    .flight-time { flex: 1 1 100%; font-size: 26px; }
+    .answer-time { font-size: 34px; }
+    .headline { font-size: 24px; }
+  }
+
+  /* ---------- print ---------- */
+  @media print {
+    :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+      --bg: #FFFFFF; --surface: #FFFFFF; --surface-2: #F5F5F7; --border: #CCCCCC;
+      --text: #111111; --text-muted: #444444;
+      --accent: #382CA0; --accent-strong: #382CA0; --accent-soft: transparent; --accent-ring: transparent;
+      --good: #0A6B45; --good-soft: transparent;
+      --warn: #7A4600; --warn-soft: transparent;
+      --bad: #A3123A; --bad-soft: transparent;
+      --shadow: none; --shadow-sm: none;
+    }
+    body { background: #fff; }
+    .page { max-width: 100%; padding: 0; }
+    .board { box-shadow: none; border: 1px solid var(--border); border-radius: 0; page-break-inside: avoid; }
+    .no-print, .help-tip, .maps-link, .edit-note, .drive-check { display: none !important; }
+
+    /* controls read as a settled fact sheet, not editable widgets */
+    .flight-time, .time-chip { border-color: transparent; background: transparent; padding-left: 0; }
+    .stepper button { display: none; }
+    .stepper { min-width: 0; gap: 4px; }
+    .pin-btn { padding: 0 !important; }
+    .pin-btn::after, .pin-btn svg { display: none; }
+    .pin-btn .pin-label { max-width: none !important; opacity: 1 !important; overflow: visible; position: static; }
+    .leg:not(.is-anchor) .pin-btn { display: none; }
+
+    .segmented { background: none; border: none; padding: 0; display: block; }
+    .seg { display: none; }
+    .seg[aria-checked="true"] {
+      display: inline-flex; flex-direction: row; gap: 6px; box-shadow: none; background: none; padding: 0;
+      color: var(--text); font-weight: 700;
+    }
+
+    .status-banner, .leg-note { background: none !important; border: 1px solid currentColor; }
+    .stop { border: 1px solid var(--border); background: none; }
+    .stop:hover { border-color: var(--border); background: none; }
+
+    .timeline { padding-right: 0; }
+    .leg { page-break-inside: avoid; }
+    a[href]:after { content: none !important; }
+  }
+</style>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="ic-alarm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l3 2"/><path d="M8.5 3.5 5 6M15.5 3.5 19 6"/>
+  </symbol>
+  <symbol id="ic-shirt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8.5 4 4 6.5 6 10l2-1v10.5h8V9l2 1 2-3.5L14.5 4a2.5 2.5 0 0 1-5 0Z"/>
+  </symbol>
+  <symbol id="ic-coffee" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 9h11v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4Z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 5.5c0 1-1 1-1 2M12 5.5c0 1-1 1-1 2"/>
+  </symbol>
+  <symbol id="ic-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 16v-3.5L6 8h12l2 4.5V16"/><path d="M4 16h16M6.5 16v2M17.5 16v2"/><circle cx="7.5" cy="14" r="1.2"/><circle cx="16.5" cy="14" r="1.2"/>
+  </symbol>
+  <symbol id="ic-dropoff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2.5 15.5V12l1.7-4h8.6l1.7 4v3.5"/><path d="M2.5 15.5h12M4.5 15.5v1.8M12.5 15.5v1.8"/>
+    <circle cx="5.6" cy="13.6" r="1"/><circle cx="11.4" cy="13.6" r="1"/>
+    <path d="M19 5.5v7.5M19 13.5l-2.2-2.2M19 13.5l2.2-2.2"/>
+  </symbol>
+  <symbol id="ic-wheel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.6"/>
+    <path d="M12 3.5v5.9M5.3 15.8l4.4-2.5M18.7 15.8l-4.4-2.5"/>
+  </symbol>
+  <symbol id="ic-train" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="5.5" y="3.5" width="13" height="13" rx="3.5"/><path d="M5.5 10.5h13"/>
+    <circle cx="9.2" cy="13.6" r="1"/><circle cx="14.8" cy="13.6" r="1"/>
+    <path d="M8.5 16.5 6.5 20.5M15.5 16.5l2 4"/>
+  </symbol>
+  <symbol id="ic-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="13.5" cy="4.6" r="1.9"/>
+    <path d="M13.5 8.5 11 12.5 9 20.5M13.5 8.5l3.2 3.2 1 4.3M11 12.5 7.5 10.8"/>
+  </symbol>
+  <symbol id="ic-hourglass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 4h10M7 20h10M7 4c0 5 5 6 5 8s-5 3-5 8M17 4c0 5-5 6-5 8s5 3 5 8"/>
+  </symbol>
+  <symbol id="ic-bench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.5 11.5h17M4.5 11.5v6M19.5 11.5v6M6 8.5h12M6 8.5v3M18 8.5v3"/>
+  </symbol>
+  <symbol id="ic-door" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 20V4h9v16"/><path d="M15 4 19 6v14l-4-2"/><circle cx="12.5" cy="12" r="0.9" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="ic-road" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 4 5 20M15 4l4 16"/><path d="M12 5v2M12 10.5v2M12 16v2"/>
+  </symbol>
+  <symbol id="ic-parking" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4.5" y="4" width="15" height="16" rx="2.5"/><path d="M10 16V8h3a2.5 2.5 0 0 1 0 5h-3"/>
+  </symbol>
+  <symbol id="ic-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="8" cy="9" r="3.5"/><path d="M10.3 11.3 19 20M15.5 15.5l2-2M18 18l2-2"/>
+  </symbol>
+  <symbol id="ic-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 20V9l8-5 8 5v11"/><path d="M4 20h16M9 20v-6h6v6"/>
+  </symbol>
+  <symbol id="ic-bag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="5" y="8" width="14" height="12" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/><path d="M9 12v4M15 12v4"/>
+  </symbol>
+  <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3.5 19 6v6c0 5-3.5 7.5-7 8.5-3.5-1-7-3.5-7-8.5V6Z"/><path d="M9 12l2 2 4-4.5"/>
+  </symbol>
+  <symbol id="ic-ticket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 9a2 2 0 0 1 0-4h16a2 2 0 0 1 0 4 2 2 0 0 0 0 4 2 2 0 0 1 0 4H4a2 2 0 0 1 0-4 2 2 0 0 0 0-4Z"/><path d="M14 6v10" stroke-dasharray="1.6 2.2"/>
+  </symbol>
+  <symbol id="ic-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2 13.2 5 13.2 11 22 15.5 22 17.3 13.2 14.7 13.2 18.5 16.5 20.7 16.5 22 12 20.8 7.5 22 7.5 20.7 10.8 18.5 10.8 14.7 2 17.3 2 15.5 10.8 11 10.8 5Z"/>
+  </symbol>
+  <symbol id="ic-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3a5 5 0 0 1 5 5c0 3.5-5 12-5 12s-5-8.5-5-12a5 5 0 0 1 5-5Z"/><circle cx="12" cy="8" r="1.8"/>
+  </symbol>
+  <symbol id="ic-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="8.5"/><ellipse cx="12" cy="12" rx="3.8" ry="8.5"/><path d="M3.5 12h17"/>
+  </symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
+  </symbol>
+  <symbol id="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="8.5" y="8.5" width="12" height="13" rx="2"/>
+    <path d="M15.5 8.5V6a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2.5"/>
+  </symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9.8 14.2 14.2 9.8"/>
+    <path d="M11 6.6 12.7 4.9a3.7 3.7 0 0 1 5.2 5.2L16.2 12"/>
+    <path d="M13 17.4 11.3 19.1a3.7 3.7 0 0 1-5.2-5.2L7.8 12"/>
+  </symbol>
+  <symbol id="ic-print" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="5.5" y="9" width="13" height="7.5" rx="1.6"/>
+    <path d="M7.5 9V4.5h9V9M7.5 16.5v3h9v-3"/>
+    <circle cx="15.5" cy="11.7" r="0.6" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 12.5 9.5 17 19 6.5"/>
+  </symbol>
+</svg>
+
+<div class="page">
+
+  <div class="board">
+    <div class="brand">Runway</div>
+    <h1 class="headline">Never sprint to the gate again.</h1>
+    <p class="subhead">Tell Runway when you fly. It works backwards to the moment your alarm goes off.</p>
+
+    <section class="section">
+      <h2 class="eyebrow section-label">Flight &amp; transport</h2>
+
+      <div class="control-row">
+        <div class="control-icon"><svg><use href="#ic-plane"/></svg></div>
+        <div class="control-text"><label class="control-label" for="flightTimeInput">Departure time</label></div>
+        <input class="flight-time" id="flightTimeInput" type="time" value="08:00" />
+      </div>
+
+      <div class="mode-block">
+        <div class="mode-head">
+          <div class="control-icon"><svg id="modeHeadIcon"><use href="#ic-wheel"/></svg></div>
+          <div class="control-text">
+            <span class="control-label" id="modeLabel">Getting there</span>
+            <span class="control-sub" id="modeSub">Driving yourself and parking at the airport</span>
+          </div>
+        </div>
+        <div class="segmented" id="modeSeg" role="radiogroup" aria-labelledby="modeLabel">
+          <button type="button" class="seg" role="radio" data-mode="drive" aria-checked="true"><svg><use href="#ic-wheel"/></svg>Drive</button>
+          <button type="button" class="seg" role="radio" data-mode="rideshare" aria-checked="false" tabindex="-1"><svg><use href="#ic-car"/></svg>Rideshare</button>
+          <button type="button" class="seg" role="radio" data-mode="transit" aria-checked="false" tabindex="-1"><svg><use href="#ic-train"/></svg>Transit</button>
+          <button type="button" class="seg" role="radio" data-mode="dropoff" aria-checked="false" tabindex="-1"><svg><use href="#ic-dropoff"/></svg>Drop-off</button>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <div class="control-icon"><svg id="travelIcon"><use href="#ic-road"/></svg></div>
+        <div class="control-text"><label class="control-label" id="travelLabel" for="travelNum">Drive to the airport</label></div>
+        <div class="stepper">
+          <button type="button" id="travelMinus" tabindex="-1" aria-label="Five minutes less travel time">-</button>
+          <input type="number" id="travelNum" min="0" step="5" value="30" />
+          <button type="button" id="travelPlus" tabindex="-1" aria-label="Five minutes more travel time">+</button>
+          <span class="unit">min</span>
+        </div>
+      </div>
+      <a id="mapsLink" class="maps-link" href="https://www.google.com/maps/dir/?api=1&amp;travelmode=driving" target="_blank" rel="noopener">
+        <svg width="13" height="13"><use href="#ic-search"/></svg>
+        <span id="mapsLabel">Open Maps to check your drive time</span>
+      </a>
+
+      <div class="control-row">
+        <div class="control-icon"><svg><use href="#ic-globe"/></svg></div>
+        <div class="control-text">
+          <label class="control-label" for="intlToggle">Flying international</label>
+          <span class="control-sub">Raises the recommended cushion to 3h</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="intlToggle" />
+          <span class="switch-track"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="eyebrow section-label">At a glance</h2>
+
+      <div class="answer">
+        <span class="eyebrow" id="answerLabel">Set your alarm for</span>
+        <div class="answer-time" id="answerTime">&ndash;:&ndash;</div>
+      </div>
+
+      <div class="stops" id="stopsList"></div>
+
+      <div class="stats">
+        <div class="stat">
+          <b id="sumCushion">&ndash;</b>
+          <span>Your cushion</span>
+        </div>
+        <div class="stat right">
+          <b id="sumTarget">&ndash;</b>
+          <span>Recommended</span>
+        </div>
+      </div>
+
+      <div class="status-banner" id="statusBanner" role="status">
+        <span class="dot"></span><span id="statusText">&ndash;</span>
+      </div>
+    </section>
+  </div>
+
+  <div class="plan-head-row">
+    <div class="plan-head-title">
+      <h2 class="eyebrow plan-head">Your plan, step by step</h2>
+      <span class="help-tip">
+        <button type="button" class="help-btn" aria-describedby="planHelpBubble">
+          <svg><use href="#ic-pin"/></svg>
+          <span class="visually-hidden">How pinning works</span>
+        </button>
+        <span class="help-bubble" id="planHelpBubble" role="tooltip">
+          Change any time and the cushion at the airport absorbs it &mdash; your departure time stays put. Pin a step to hold it in place instead, and switch off anything you don't need.
+        </span>
+      </span>
+    </div>
+    <div class="plan-actions no-print">
+      <button type="button" class="action-btn" id="copyPlanBtn">
+        <svg><use href="#ic-copy"/></svg><span>Copy plan</span>
+      </button>
+      <button type="button" class="action-btn" id="shareLinkBtn">
+        <svg><use href="#ic-link"/></svg><span>Copy link</span>
+      </button>
+      <button type="button" class="action-btn" id="printBtn">
+        <svg><use href="#ic-print"/></svg><span>Print</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="edit-note" id="editNote" role="status" hidden></div>
+
+  <div class="timeline" id="timeline"></div>
+</div>
+
+<script>
+(function () {
+  document.documentElement.lang = 'en';
+
+  var MODES = {
+    drive:     { sub: 'Driving yourself and parking at the airport', icon: 'ic-wheel',   travelLabel: 'Drive to the airport', travelIcon: 'ic-road',  maps: 'driving', mapsLabel: 'Open Maps to check your drive time' },
+    rideshare: { sub: 'Calling an Uber or Lyft to the curb',         icon: 'ic-car',     travelLabel: 'Ride to the airport',  travelIcon: 'ic-road',  maps: 'driving', mapsLabel: 'Open Maps to check your drive time' },
+    transit:   { sub: 'Taking a train, bus, or subway',              icon: 'ic-train',   travelLabel: 'Train to the airport', travelIcon: 'ic-train', maps: 'transit', mapsLabel: 'Open Maps to check your transit time' },
+    dropoff:   { sub: 'Someone is dropping you at departures',       icon: 'ic-dropoff', travelLabel: 'Ride to the airport',  travelIcon: 'ic-road',  maps: 'driving', mapsLabel: 'Open Maps to check your drive time' }
+  };
+
+  var nodes = [
+    { id: 'wake',        type: 'time', label: 'Wake up',                   icon: 'ic-alarm', optional: true, enabled: true },
+    { id: 'getReady',    type: 'gap',  label: 'Shower and dress',          icon: 'ic-shirt', minutes: 20, optional: true, enabled: true },
+    { id: 'breakfast',   type: 'gap',  label: 'Coffee and breakfast',      icon: 'ic-coffee', minutes: 15, optional: true, enabled: false },
+    { id: 'orderRide',   type: 'time', label: 'Order your ride',           icon: 'ic-car', modes: ['rideshare'] },
+    { id: 'rideWait',    type: 'gap',  label: 'Wait for pickup',           icon: 'ic-hourglass', minutes: 8, modes: ['rideshare'] },
+    { id: 'leave',       type: 'time', label: 'Head out the door',         icon: 'ic-door' },
+    { id: 'walkStation', type: 'gap',  label: 'Walk to the station',       icon: 'ic-walk', minutes: 10, modes: ['transit'] },
+    { id: 'travel',      type: 'gap',  label: 'Drive to the airport',      icon: 'ic-road', minutes: 30 },
+    { id: 'parkShuttle', type: 'gap',  label: 'Park and shuttle',         icon: 'ic-parking', minutes: 15, optional: true, enabled: true, modes: ['drive'] },
+    { id: 'rentalReturn',type: 'gap',  label: 'Return the rental car',     icon: 'ic-key', minutes: 20, optional: true, enabled: false, modes: ['drive'] },
+    { id: 'stationWalk', type: 'gap',  label: 'Walk to the terminal',      icon: 'ic-walk', minutes: 8, modes: ['transit'] },
+    { id: 'arrive',      type: 'time', label: 'At the terminal',           icon: 'ic-terminal' },
+    { id: 'bagCheck',    type: 'gap',  label: 'Check your bags',           icon: 'ic-bag', minutes: 15, optional: true, enabled: false },
+    { id: 'security',    type: 'gap',  label: 'Security',                  icon: 'ic-shield', minutes: 25 },
+    { id: 'gateWalk',    type: 'gap',  label: 'Walk to the gate',          icon: 'ic-walk', minutes: 15 },
+    { id: 'spare',       type: 'gap',  label: 'Time to spare at the gate', icon: 'ic-bench', minutes: 60 },
+    { id: 'board',       type: 'time', label: 'Boarding starts',           icon: 'ic-ticket' },
+    { id: 'boardToDepart', type: 'gap', label: 'Boarding to departure',    icon: 'ic-hourglass', minutes: 20 },
+    { id: 'flight',      type: 'time', label: 'Departure',                 icon: 'ic-plane' }
+  ];
+
+  var SHORT_LABEL = {
+    wake: 'Wake up', orderRide: 'Order ride', leave: 'Head out',
+    arrive: 'Terminal', board: 'Boarding', flight: 'Departs'
+  };
+
+  var byId = {};
+  nodes.forEach(function (n, i) { n.index = i; byId[n.id] = n; });
+
+  var state = { anchorId: 'flight', anchorMinutes: 8 * 60, times: [], mode: 'drive' };
+
+  function inMode(node) { return !node.modes || node.modes.indexOf(state.mode) !== -1; }
+  function isOn(node) { return inMode(node) && !(node.optional && !node.enabled); }
+  function effectiveMinutes(node) { return (node.type === 'gap' && isOn(node)) ? node.minutes : 0; }
+
+  function recalc() {
+    var a = byId[state.anchorId].index;
+    var times = new Array(nodes.length);
+    times[a] = state.anchorMinutes;
+    var cursor = state.anchorMinutes;
+    for (var i = a + 1; i < nodes.length; i++) { cursor += effectiveMinutes(nodes[i]); times[i] = cursor; }
+    cursor = state.anchorMinutes;
+    for (var j = a - 1; j >= 0; j--) { cursor -= effectiveMinutes(nodes[j + 1]); times[j] = cursor; }
+    state.times = times;
+  }
+
+  function fmtClock(mins) {
+    var wrapped = ((Math.round(mins) % 1440) + 1440) % 1440;
+    var h = Math.floor(wrapped / 60), m = wrapped % 60;
+    var h12 = h % 12; if (h12 === 0) h12 = 12;
+    return { text: h12 + ':' + (m < 10 ? '0' : '') + m, meridiem: h >= 12 ? 'PM' : 'AM', h24: h, m: m };
+  }
+  function clockLabel(mins) { var c = fmtClock(mins); return c.text + ' ' + c.meridiem; }
+
+  function fmtDuration(mins) {
+    var neg = mins < 0;
+    mins = Math.abs(Math.round(mins));
+    var h = Math.floor(mins / 60), m = mins % 60;
+    var s = h <= 0 ? m + 'm' : (m === 0 ? h + 'h' : h + 'h ' + m + 'm');
+    return neg ? '-' + s : s;
+  }
+
+  function dayOffset(index) {
+    var flightDay = Math.floor(state.times[byId.flight.index] / 1440);
+    return Math.floor(state.times[index] / 1440) - flightDay;
+  }
+  function dayTagFor(index) {
+    var diff = dayOffset(index);
+    if (diff === 0) return null;
+    return diff < 0 ? (diff === -1 ? 'day before' : diff + ' days') : ('+' + diff + ' day' + (diff > 1 ? 's' : ''));
+  }
+
+  /* ---------- editing a time ----------
+     The departure time is a fact, not a preference: editing any other step must
+     never move it. Instead the change is absorbed by an adjustable gap between
+     the edited step and the pinned one — normally the gate cushion. If there
+     isn't enough slack left, we clamp to the latest feasible time and say so. */
+
+  function absorbTarget(nodeIdx, anchorIdx) {
+    var lo = Math.min(nodeIdx, anchorIdx), hi = Math.max(nodeIdx, anchorIdx);
+    var cands = [];
+    for (var i = lo + 1; i <= hi; i++) {
+      if (nodes[i].type === 'gap' && isOn(nodes[i])) cands.push(nodes[i]);
+    }
+    if (!cands.length) return null;
+    for (var k = 0; k < cands.length; k++) if (cands[k].id === 'spare') return cands[k];
+    cands.sort(function (a, b) { return Math.abs(a.index - nodeIdx) - Math.abs(b.index - nodeIdx); });
+    return cands[0];
+  }
+
+  function editTime(node, wallMinutes) {
+    var old = state.times[node.index];
+    var target = wallMinutes + 1440 * Math.round((old - wallMinutes) / 1440);
+    var delta = target - old;
+    if (delta === 0) return null;
+
+    // Editing the pinned step itself slides the whole plan, as before.
+    if (node.id === state.anchorId) {
+      state.anchorMinutes = target;
+      return null;
+    }
+
+    var gap = absorbTarget(node.index, byId[state.anchorId].index);
+    if (!gap) { state.anchorId = node.id; state.anchorMinutes = target; return null; }
+
+    // Later + upstream of the pin ⇒ the gap must shrink; downstream ⇒ it grows.
+    var sign = node.index < byId[state.anchorId].index ? -1 : 1;
+    var want = gap.minutes + sign * delta;
+    if (want < 0) {
+      // Not enough slack: take the gap to zero and let the step land as close
+      // as it can get, rather than silently moving the departure time.
+      gap.minutes = 0;
+      return { limited: true, label: node.label, gapLabel: gap.label };
+    }
+    gap.minutes = want;
+    return null;
+  }
+
+  var noteEl = document.getElementById('editNote');
+  var noteTimer = null;
+  function showNote(msg) {
+    noteEl.textContent = msg;
+    noteEl.hidden = false;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(function () { noteEl.hidden = true; }, 6000);
+  }
+
+  function reanchorIfNeeded() {
+    if (!isOn(byId[state.anchorId])) {
+      state.anchorMinutes = state.times[byId.flight.index];
+      state.anchorId = 'flight';
+    }
+  }
+
+  var timelineEl = document.getElementById('timeline');
+  var rowEls = {};
+
+  function buildRows() {
+    nodes.forEach(function (node) {
+      var leg = document.createElement('div');
+      leg.className = 'leg leg--' + node.type;
+      leg.dataset.id = node.id;
+
+      var marker = document.createElement('div');
+      marker.className = 'leg-marker';
+      marker.innerHTML = '<svg><use href="#' + node.icon + '"/></svg>';
+      leg.appendChild(marker);
+
+      var row = document.createElement('div');
+      row.className = 'leg-row';
+      var main = document.createElement('div');
+      main.className = 'leg-main';
+      var labelRow = document.createElement('div');
+      labelRow.className = 'leg-label-row';
+
+      var controls = {};
+      var labelId = 'lbl-' + node.id;
+      var label = document.createElement('label');
+      label.className = 'leg-label';
+      label.id = labelId;
+      label.textContent = node.label;
+      labelRow.appendChild(label);
+
+      if (node.optional) {
+        var sw = document.createElement('label');
+        sw.className = 'switch';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = node.enabled;
+        cb.setAttribute('aria-label', 'Include ' + node.label);
+        cb.addEventListener('change', function () {
+          node.enabled = cb.checked;
+          reanchorIfNeeded();
+          render();
+        });
+        var track = document.createElement('span');
+        track.className = 'switch-track';
+        sw.appendChild(cb); sw.appendChild(track);
+        labelRow.appendChild(sw);
+        controls.toggle = cb;
+      }
+
+      if (node.type === 'time') {
+        var pin = document.createElement('button');
+        pin.type = 'button';
+        pin.className = 'pin-btn';
+        pin.innerHTML = '<svg><use href="#ic-pin"/></svg><span class="pin-label">Pinned</span>';
+        pin.addEventListener('click', function () {
+          if (state.anchorId === node.id) {
+            // toggle off -> the departure time takes the pin back
+            state.anchorMinutes = state.times[byId.flight.index];
+            state.anchorId = 'flight';
+          } else {
+            state.anchorId = node.id;
+            state.anchorMinutes = state.times[node.index];
+          }
+          render();
+        });
+        labelRow.appendChild(pin);
+        controls.pin = pin;
+      }
+
+      var dayTag = document.createElement('span');
+      dayTag.className = 'day-tag';
+      dayTag.style.display = 'none';
+      labelRow.appendChild(dayTag);
+
+      main.appendChild(labelRow);
+      row.appendChild(main);
+
+      if (node.type === 'time') {
+        var endWrap = document.createElement('div');
+        endWrap.className = 'leg-end';
+        var timeInput = document.createElement('input');
+        timeInput.type = 'time';
+        timeInput.className = 'time-chip';
+        timeInput.id = 'time-' + node.id;
+        label.setAttribute('for', timeInput.id);
+        timeInput.addEventListener('change', function () {
+          if (!timeInput.value) { render(); return; }
+          var p = timeInput.value.split(':');
+          var res = editTime(node, parseInt(p[0], 10) * 60 + parseInt(p[1], 10));
+          render();
+          if (res && res.limited) {
+            showNote('That is as far as "' + res.label + '" can move — "' + res.gapLabel +
+                     '" is down to zero. Free up time elsewhere, or move your departure time.');
+          }
+        });
+        endWrap.appendChild(timeInput);
+        controls.time = timeInput;
+        row.appendChild(endWrap);
+      } else {
+        var stepper = document.createElement('div');
+        stepper.className = 'stepper';
+        var minus = document.createElement('button');
+        minus.type = 'button'; minus.textContent = '-'; minus.tabIndex = -1;
+        minus.setAttribute('aria-label', 'Five minutes less for ' + node.label);
+        var num = document.createElement('input');
+        num.type = 'number'; num.min = '0'; num.step = '5'; num.value = node.minutes;
+        num.id = 'num-' + node.id;
+        label.setAttribute('for', num.id);
+        var plus = document.createElement('button');
+        plus.type = 'button'; plus.textContent = '+'; plus.tabIndex = -1;
+        plus.setAttribute('aria-label', 'Five minutes more for ' + node.label);
+        var unit = document.createElement('span');
+        unit.className = 'unit'; unit.textContent = 'min';
+        function commit(v) { node.minutes = Math.max(0, Math.round(v / 5) * 5); render(); }
+        minus.addEventListener('click', function () { commit((parseInt(num.value, 10) || 0) - 5); });
+        plus.addEventListener('click', function () { commit((parseInt(num.value, 10) || 0) + 5); });
+        num.addEventListener('change', function () { commit(parseInt(num.value, 10) || 0); });
+        stepper.appendChild(minus); stepper.appendChild(num); stepper.appendChild(plus); stepper.appendChild(unit);
+        row.appendChild(stepper);
+        controls.stepper = stepper;
+        controls.num = num;
+      }
+
+      leg.appendChild(row);
+
+      var note = null;
+      if (node.id === 'arrive') {
+        note = document.createElement('div');
+        note.className = 'leg-note';
+        note.innerHTML = '<span class="dot"></span><span class="leg-note-text"></span>';
+        leg.appendChild(note);
+      }
+
+      timelineEl.appendChild(leg);
+      rowEls[node.id] = { leg: leg, dayTag: dayTag, note: note, controls: controls };
+    });
+  }
+
+  function verdictFor(cushion, target) {
+    if (cushion >= target) return { level: 'good', word: 'Roomy', line: "there's time for a coffee before you board" };
+    if (cushion >= target * 0.75) return { level: 'warn', word: 'Snug', line: "keep moving and you're fine" };
+    return { level: 'bad', word: 'Tight', line: "you'll be power-walking" };
+  }
+
+  var stopsEl = document.getElementById('stopsList');
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function renderStops() {
+    stopsEl.innerHTML = '';
+    nodes.forEach(function (node) {
+      if (node.type !== 'time' || !isOn(node)) return;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'stop' + (node.id === 'flight' ? ' is-final' : '');
+      var b = document.createElement('b');
+      b.textContent = clockLabel(state.times[node.index]);
+      var s = document.createElement('span');
+      s.textContent = SHORT_LABEL[node.id] || node.label;
+      var tag = dayTagFor(node.index);
+      if (tag) {
+        var em = document.createElement('em');
+        em.textContent = ' · ' + tag;
+        s.appendChild(em);
+      }
+      btn.appendChild(b); btn.appendChild(s);
+      btn.setAttribute('aria-label', 'Jump to ' + node.label + ' in your plan');
+      btn.addEventListener('click', function () {
+        var target = rowEls[node.id].leg;
+        target.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'center' });
+        var input = rowEls[node.id].controls.time;
+        if (input && !input.disabled) setTimeout(function () { input.focus({ preventScroll: true }); }, reduceMotion.matches ? 0 : 400);
+      });
+      stopsEl.appendChild(btn);
+    });
+  }
+
+  function render() {
+    recalc();
+
+    nodes.forEach(function (node) {
+      var refs = rowEls[node.id];
+      var visible = inMode(node);
+      refs.leg.style.display = visible ? '' : 'none';
+      refs.leg.classList.toggle('is-anchor', visible && node.id === state.anchorId);
+      if (!visible) return;
+
+      var off = !isOn(node);
+      refs.leg.classList.toggle('is-disabled', off);
+      if (refs.controls.toggle) refs.controls.toggle.checked = !!node.enabled;
+
+      if (node.type === 'time') {
+        var c = fmtClock(state.times[node.index]);
+        refs.controls.time.value = ('0' + c.h24).slice(-2) + ':' + ('0' + c.m).slice(-2);
+        refs.controls.time.disabled = off;
+        refs.controls.pin.disabled = off;
+        refs.controls.pin.setAttribute('aria-pressed', node.id === state.anchorId ? 'true' : 'false');
+        refs.controls.pin.setAttribute('aria-label',
+          node.id === state.anchorId ? 'Unpin ' + node.label : 'Pin the plan to ' + node.label);
+        var tag = dayTagFor(node.index);
+        refs.dayTag.style.display = tag ? '' : 'none';
+        refs.dayTag.textContent = tag || '';
+      } else {
+        if (document.activeElement !== refs.controls.num) refs.controls.num.value = node.minutes;
+        refs.controls.stepper.querySelectorAll('button, input').forEach(function (el) { el.disabled = off; });
+      }
+    });
+
+    renderStops();
+
+    // the answer
+    var answerNode = isOn(byId.wake) ? byId.wake : byId.leave;
+    document.getElementById('answerLabel').textContent =
+      answerNode === byId.wake ? 'Set your alarm for' : 'Head out at';
+    document.getElementById('answerTime').textContent = clockLabel(state.times[answerNode.index]);
+
+    var flightClock = fmtClock(state.times[byId.flight.index]);
+    var flightInput = document.getElementById('flightTimeInput');
+    if (document.activeElement !== flightInput) {
+      flightInput.value = ('0' + flightClock.h24).slice(-2) + ':' + ('0' + flightClock.m).slice(-2);
+    }
+    var travelNum = document.getElementById('travelNum');
+    if (document.activeElement !== travelNum) travelNum.value = byId.travel.minutes;
+
+    var cushion = state.times[byId.flight.index] - state.times[byId.arrive.index];
+    var intl = document.getElementById('intlToggle').checked;
+    var target = intl ? 180 : 120;
+    var v = verdictFor(cushion, target);
+
+    document.getElementById('sumCushion').textContent = fmtDuration(cushion);
+    document.getElementById('sumTarget').textContent = fmtDuration(target);
+
+    var banner = document.getElementById('statusBanner');
+    banner.className = 'status-banner ' + v.level;
+    document.getElementById('statusText').textContent =
+      v.word + ' — ' + fmtDuration(cushion) + ' of cushion, so ' + v.line + '.';
+
+    var arriveNote = rowEls.arrive.note;
+    arriveNote.className = 'leg-note ' + v.level;
+    arriveNote.querySelector('.leg-note-text').textContent = fmtDuration(cushion) + ' of cushion from here';
+  }
+
+  /* ---------- header controls ---------- */
+
+  document.getElementById('flightTimeInput').addEventListener('change', function (e) {
+    if (!e.target.value) { render(); return; }
+    var p = e.target.value.split(':');
+    editTime(byId.flight, parseInt(p[0], 10) * 60 + parseInt(p[1], 10));
+    render();
+  });
+
+  document.getElementById('intlToggle').addEventListener('change', render);
+
+  var travelNumEl = document.getElementById('travelNum');
+  function commitTravel(v) { byId.travel.minutes = Math.max(0, Math.round(v / 5) * 5); render(); }
+  document.getElementById('travelMinus').addEventListener('click', function () { commitTravel((parseInt(travelNumEl.value, 10) || 0) - 5); });
+  document.getElementById('travelPlus').addEventListener('click', function () { commitTravel((parseInt(travelNumEl.value, 10) || 0) + 5); });
+  travelNumEl.addEventListener('change', function () { commitTravel(parseInt(travelNumEl.value, 10) || 0); });
+
+  function applyMode(mode) {
+    state.mode = mode;
+    var cfg = MODES[mode];
+
+    byId.travel.label = cfg.travelLabel;
+    byId.travel.icon = cfg.travelIcon;
+    rowEls.travel.leg.querySelector('.leg-label').textContent = cfg.travelLabel;
+    rowEls.travel.leg.querySelector('.leg-marker svg use').setAttribute('href', '#' + cfg.travelIcon);
+
+    document.getElementById('modeSub').textContent = cfg.sub;
+    document.getElementById('modeHeadIcon').querySelector('use').setAttribute('href', '#' + cfg.icon);
+    document.getElementById('travelLabel').textContent = cfg.travelLabel;
+    document.getElementById('travelIcon').querySelector('use').setAttribute('href', '#' + cfg.travelIcon);
+    document.getElementById('mapsLabel').textContent = cfg.mapsLabel;
+    document.getElementById('mapsLink').href = 'https://www.google.com/maps/dir/?api=1&travelmode=' + cfg.maps;
+
+    document.querySelectorAll('.seg').forEach(function (b) {
+      var on = b.dataset.mode === mode;
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+    });
+
+    reanchorIfNeeded();
+    render();
+  }
+
+  var modeSeg = document.getElementById('modeSeg');
+  modeSeg.addEventListener('click', function (e) {
+    var btn = e.target.closest('.seg');
+    if (btn) applyMode(btn.dataset.mode);
+  });
+  modeSeg.addEventListener('keydown', function (e) {
+    var step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    var segs = Array.prototype.slice.call(modeSeg.querySelectorAll('.seg'));
+    var i = 0;
+    segs.forEach(function (s, idx) { if (s.dataset.mode === state.mode) i = idx; });
+    var next = segs[(i + step + segs.length) % segs.length];
+    applyMode(next.dataset.mode);
+    next.focus();
+  });
+
+  /* ---------- copy plan as text ---------- */
+
+  function buildPlanText() {
+    var lines = [];
+    var flightClock = fmtClock(state.times[byId.flight.index]);
+    var h12 = flightClock.h24 % 12 || 12;
+    var article = (h12 === 8 || h12 === 11) ? 'an' : 'a';
+    lines.push('Runway — plan for ' + article + ' ' + clockLabel(state.times[byId.flight.index]) + ' departure (' + MODES[state.mode].travelLabel.replace(' to the airport', '') + ')');
+    lines.push('');
+    nodes.forEach(function (node) {
+      if (!isOn(node)) return;
+      if (node.type === 'time') {
+        var tag = dayTagFor(node.index);
+        lines.push(node.label + ' — ' + clockLabel(state.times[node.index]) + (tag ? ' (' + tag + ')' : ''));
+      } else {
+        lines.push('  + ' + node.label + ' — ' + fmtDuration(node.minutes));
+      }
+    });
+    lines.push('');
+    var cushion = state.times[byId.flight.index] - state.times[byId.arrive.index];
+    var intl = document.getElementById('intlToggle').checked;
+    var v = verdictFor(cushion, intl ? 180 : 120);
+    lines.push('Cushion at the airport: ' + fmtDuration(cushion) + ' (' + v.word + ')');
+    return lines.join('\n');
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    // Older/sandboxed webviews without the async Clipboard API.
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok ? Promise.resolve() : Promise.reject(new Error('copy failed'));
+  }
+
+  function flashButton(btn, iconId, label) {
+    var svg = btn.querySelector('svg use');
+    var span = btn.querySelector('span:not(.visually-hidden)');
+    var prevIcon = svg.getAttribute('href'), prevText = span.textContent;
+    svg.setAttribute('href', '#' + iconId);
+    span.textContent = label;
+    btn.classList.add('is-done');
+    clearTimeout(btn._flashTimer);
+    btn._flashTimer = setTimeout(function () {
+      svg.setAttribute('href', prevIcon);
+      span.textContent = prevText;
+      btn.classList.remove('is-done');
+    }, 2000);
+  }
+
+  document.getElementById('copyPlanBtn').addEventListener('click', function () {
+    var btn = this;
+    copyText(buildPlanText())
+      .then(function () { flashButton(btn, 'ic-check', 'Copied!'); })
+      .catch(function () { flashButton(btn, 'ic-copy', "Couldn't copy"); });
+  });
+
+  document.getElementById('printBtn').addEventListener('click', function () { window.print(); });
+
+  /* ---------- shareable link ----------
+     Encodes just enough to rebuild the plan: departure time, transport mode,
+     the international toggle, and every adjustable minute/on-off a user could
+     have changed. Anchoring always resolves back to the departure time on
+     load, matching how edits behave normally. */
+
+  var GAP_IDS = nodes.filter(function (n) { return n.type === 'gap'; }).map(function (n) { return n.id; });
+  var OPTIONAL_IDS = nodes.filter(function (n) { return n.optional; }).map(function (n) { return n.id; });
+
+  function buildShareUrl() {
+    var g = {};
+    GAP_IDS.forEach(function (id) { g[id] = byId[id].minutes; });
+    var e = {};
+    OPTIONAL_IDS.forEach(function (id) { e[id] = byId[id].enabled ? 1 : 0; });
+    var payload = {
+      f: state.times[byId.flight.index],
+      m: state.mode,
+      intl: document.getElementById('intlToggle').checked ? 1 : 0,
+      g: g, e: e
+    };
+    var url = new URL(location.href);
+    url.search = '';
+    url.searchParams.set('p', JSON.stringify(payload));
+    return url.toString();
+  }
+
+  function applySharedState(raw) {
+    var payload;
+    try { payload = JSON.parse(raw); } catch (e) { return false; }
+    if (!payload || typeof payload.f !== 'number') return false;
+
+    if (payload.g) GAP_IDS.forEach(function (id) {
+      if (typeof payload.g[id] === 'number') byId[id].minutes = Math.max(0, payload.g[id]);
+    });
+    if (payload.e) OPTIONAL_IDS.forEach(function (id) {
+      if (id in payload.e) byId[id].enabled = !!payload.e[id];
+    });
+    if (payload.m && MODES[payload.m]) applyMode(payload.m);
+
+    document.getElementById('intlToggle').checked = !!payload.intl;
+    state.anchorId = 'flight';
+    state.anchorMinutes = payload.f;
+    render();
+    return true;
+  }
+
+  document.getElementById('shareLinkBtn').addEventListener('click', function () {
+    var btn = this;
+    copyText(buildShareUrl())
+      .then(function () { flashButton(btn, 'ic-check', 'Link copied!'); })
+      .catch(function () { flashButton(btn, 'ic-link', "Couldn't copy"); });
+  });
+
+  buildRows();
+  applyMode('drive');
+
+  var sharedParam = new URLSearchParams(location.search).get('p');
+  if (sharedParam) applySharedState(sharedParam);
+
+  if (!reduceMotion.matches) {
+    document.querySelector('.board').animate(
+      [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 420, easing: 'cubic-bezier(.2,.7,.3,1)' }
+    );
+  }
+})();
+</script>
